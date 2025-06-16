@@ -1,4 +1,8 @@
-// v1.0.2 gr8r-airtable-worker: adds centralized Grafana logging
+// v1.0.3 gr8r-airtable-worker: improves Grafana log visibility
+//UPDATED logToGrafana() to enforce consistent meta.source and meta.service labels
+//ADDED defaults for `source` as "gr8r-airtable-worker" and `service` as "gr8r-unknown"
+//ENSURES logs always appear in Grafana Loki when fallback labels are needed
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -91,15 +95,25 @@ export default {
 
 async function logToGrafana(level, message, meta = {}) {
   try {
+    const payload = {
+      level,
+      message,
+      meta: {
+        source: meta.source || "gr8r-airtable-worker",
+        service: meta.service || "gr8r-unknown",
+        ...meta
+      }
+    };
+
     await fetch("https://api.gr8r.com/api/grafana", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ level, message, meta })
+      body: JSON.stringify(payload)
     });
   } catch (err) {
-    // Avoid crashing main logic if logging fails
     console.error("Logger failed:", err.message);
   }
 }
+
 
 

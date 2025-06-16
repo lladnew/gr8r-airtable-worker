@@ -1,4 +1,4 @@
-// v1.0.0 gr8r-airtable-worker: handles Airtable record creation and updates via API
+// v1.0.1 gr8r-airtable-worker: supports dynamic table names
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -7,14 +7,20 @@ export default {
     if (pathname === "/api/airtable/update" && request.method === "POST") {
       try {
         const body = await request.json();
-        const { title, fields } = body;
+        const { table, title, fields } = body;
 
-        if (!title || !fields || typeof fields !== "object") {
+        if (!table || !title || !fields || typeof fields !== "object") {
           return new Response("Missing or invalid payload fields", { status: 400 });
         }
 
+        // Optional: restrict to known tables
+        const allowedTables = ["Video posts", "Subscribers"];
+        if (!allowedTables.includes(table)) {
+          return new Response("Invalid table", { status: 403 });
+        }
+
         const response = await fetch(
-          `https://api.airtable.com/v0/${env.AIRTABLE_BASE_ID}/${env.AIRTABLE_TABLE_ID}?filterByFormula=${encodeURIComponent(`{Title} = "${title}"`)}`,
+          `https://api.airtable.com/v0/${env.AIRTABLE_BASE_ID}/${table}?filterByFormula=${encodeURIComponent(`{Title} = "${title}"`)}`,
           {
             headers: {
               Authorization: `Bearer ${env.AIRTABLE_TOKEN}`,
@@ -27,7 +33,7 @@ export default {
         let recordId;
         if (records.length === 0) {
           // Create new record
-          const createResponse = await fetch(`https://api.airtable.com/v0/${env.AIRTABLE_BASE_ID}/${env.AIRTABLE_TABLE_ID}`, {
+          const createResponse = await fetch(`https://api.airtable.com/v0/${env.AIRTABLE_BASE_ID}/${table}`, {
             method: "POST",
             headers: {
               Authorization: `Bearer ${env.AIRTABLE_TOKEN}`,
@@ -46,7 +52,7 @@ export default {
         } else {
           // Update existing record
           recordId = records[0].id;
-          const updateResponse = await fetch(`https://api.airtable.com/v0/${env.AIRTABLE_BASE_ID}/${env.AIRTABLE_TABLE_ID}/${recordId}`, {
+          const updateResponse = await fetch(`https://api.airtable.com/v0/${env.AIRTABLE_BASE_ID}/${table}/${recordId}`, {
             method: "PATCH",
             headers: {
               Authorization: `Bearer ${env.AIRTABLE_TOKEN}`,
@@ -71,3 +77,4 @@ export default {
     return new Response("Not found", { status: 404 });
   }
 };
+

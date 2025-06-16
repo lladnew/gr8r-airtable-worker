@@ -1,7 +1,7 @@
-// v1.0.4 gr8r-airtable-worker: enhances error resilience and enforces logging
-//UPDATED all validation failures to log with structured meta fields
-//ENSURED missing fields or invalid tables are logged to Grafana
-//ENHANCED logToGrafana fallback to include original log content in console if fetch fails
+// v1.0.5 gr8r-airtable-worker: improves error visibility in Grafana
+//FIXED createResult.error fallback to log raw error if .message is missing
+//ENSURED update of all error logs to show consistent, visible error context in Loki
+//MAINTAINED label integrity for Grafana queries and log source tracking
 
 export default {
   async fetch(request, env, ctx) {
@@ -56,11 +56,15 @@ export default {
           const createResult = await createResponse.json();
 
           if (!createResponse.ok) {
+            const rawError = typeof createResult.error === "string"
+              ? createResult.error
+              : createResult.error?.message || JSON.stringify(createResult.error);
+
             await logToGrafana("error", "Airtable create failed", {
-              table, title, error: createResult.error?.message,
+              table, title, error: rawError,
               source: "gr8r-airtable-worker", service: "airtable-create"
             });
-            return new Response(`Create failed: ${createResult.error?.message}`, { status: 500 });
+            return new Response(`Create failed: ${rawError}`, { status: 500 });
           }
 
           recordId = createResult.records[0].id;

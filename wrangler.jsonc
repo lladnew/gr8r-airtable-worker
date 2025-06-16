@@ -1,0 +1,22 @@
+{
+  "name": "gr8r-airtable-worker",
+  "main": "index.js",
+  "compatibility_date": "2025-06-12",
+
+  // Optional: reduce cold starts (if needed)
+  // "usage_model": "bundled",
+
+  "routes": [
+    {
+      "pattern": "api.gr8r.com/api/airtable*",
+      "zone_name": "gr8r.com"
+    }
+  ],
+
+  // These are injected at runtime using wrangler secret put
+  "vars": {
+    // "AIRTABLE_BASE_ID": "set via wrangler secret",
+    // "AIRTABLE_TOKEN": "set via wrangler secret"
+  }
+}
+

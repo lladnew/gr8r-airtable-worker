@@ -1,7 +1,7 @@
-// v1.0.3 gr8r-airtable-worker: improves Grafana log visibility
-//UPDATED logToGrafana() to enforce consistent meta.source and meta.service labels
-//ADDED defaults for `source` as "gr8r-airtable-worker" and `service` as "gr8r-unknown"
-//ENSURES logs always appear in Grafana Loki when fallback labels are needed
+// v1.0.4 gr8r-airtable-worker: enhances error resilience and enforces logging
+//UPDATED all validation failures to log with structured meta fields
+//ENSURED missing fields or invalid tables are logged to Grafana
+//ENHANCED logToGrafana fallback to include original log content in console if fetch fails
 
 export default {
   async fetch(request, env, ctx) {
@@ -14,11 +14,17 @@ export default {
         const { table, title, fields } = body;
 
         if (!table || !title || !fields || typeof fields !== "object") {
+          await logToGrafana("error", "Missing or invalid payload fields", {
+            table, title, source: "gr8r-airtable-worker", service: "validation"
+          });
           return new Response("Missing or invalid payload fields", { status: 400 });
         }
 
         const allowedTables = ["Video posts", "Subscribers"];
         if (!allowedTables.includes(table)) {
+          await logToGrafana("error", "Invalid table name", {
+            table, title, source: "gr8r-airtable-worker", service: "validation"
+          });
           return new Response("Invalid table", { status: 403 });
         }
 
@@ -37,7 +43,6 @@ export default {
         let operation;
 
         if (records.length === 0) {
-          // Create new record
           const createResponse = await fetch(airtableUrl, {
             method: "POST",
             headers: {
@@ -51,14 +56,16 @@ export default {
           const createResult = await createResponse.json();
 
           if (!createResponse.ok) {
-            await logToGrafana("error", "Airtable create failed", { table, title, error: createResult.error?.message });
+            await logToGrafana("error", "Airtable create failed", {
+              table, title, error: createResult.error?.message,
+              source: "gr8r-airtable-worker", service: "airtable-create"
+            });
             return new Response(`Create failed: ${createResult.error?.message}`, { status: 500 });
           }
 
           recordId = createResult.records[0].id;
           operation = "create";
         } else {
-          // Update existing record
           recordId = records[0].id;
           const updateResponse = await fetch(`${airtableUrl}/${recordId}`, {
             method: "PATCH",
@@ -71,20 +78,29 @@ export default {
 
           if (!updateResponse.ok) {
             const errorDetails = await updateResponse.text();
-            await logToGrafana("error", "Airtable update failed", { table, title, error: errorDetails });
+            await logToGrafana("error", "Airtable update failed", {
+              table, title, error: errorDetails,
+              source: "gr8r-airtable-worker", service: "airtable-update"
+            });
             return new Response(`Update failed: ${errorDetails}`, { status: 500 });
           }
 
           operation = "update";
         }
 
-        await logToGrafana("info", `Airtable ${operation} successful`, { table, title, operation });
+        await logToGrafana("info", `Airtable ${operation} successful`, {
+          table, title, operation,
+          source: "gr8r-airtable-worker", service: `airtable-${operation}`
+        });
 
         return new Response(JSON.stringify({ success: true, recordId }), {
           headers: { "Content-Type": "application/json" }
         });
       } catch (err) {
-        await logToGrafana("error", "Unexpected Airtable worker error", { error: err.message });
+        await logToGrafana("error", "Unexpected Airtable worker error", {
+          error: err.message,
+          source: "gr8r-airtable-worker", service: "unhandled"
+        });
         return new Response(`Unexpected error: ${err.message}`, { status: 500 });
       }
     }
@@ -95,25 +111,20 @@ export default {
 
 async function logToGrafana(level, message, meta = {}) {
   try {
-    const payload = {
-      level,
-      message,
-      meta: {
-        source: meta.source || "gr8r-airtable-worker",
-        service: meta.service || "gr8r-unknown",
-        ...meta
-      }
-    };
-
     await fetch("https://api.gr8r.com/api/grafana", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        level,
+        message,
+        meta: {
+          source: meta.source || "gr8r-airtable-worker",
+          service: meta.service || "gr8r-unknown",
+          ...meta
+        }
+      })
     });
   } catch (err) {
-    console.error("Logger failed:", err.message);
+    console.error("📛 Logger failed:", err.message, "📤 Original:", { level, message, meta });
   }
 }
-
-
-

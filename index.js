@@ -1,7 +1,7 @@
 // v1.1.5 gr8r-airtable-worker: adds /debug/secrets endpoint to test secret binding
 // ADDED /debug/secrets route to confirm env.SECRETS.get is available at runtime
 // RETAINED secret null checks, Grafana logging, and all existing structure
-//no change forcing update
+//no change forcing update2
 
 export default {
   async fetch(request, env, ctx) {

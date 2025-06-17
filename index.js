@@ -1,7 +1,7 @@
-// v1.0.9 gr8r-airtable-worker: switches to absolute Worker subdomain for Grafana logging
-//REPLACED relative `/api/grafana` with absolute call to `https://gr8r-grafana-worker.gr8r.com`
-//FIXED broken internal routing due to Cloudflare Worker same-origin restrictions
-//MAINTAINED verbose error logging and original payload tracking
+// v1.1.1 gr8r-airtable-worker: switches Grafana logging to workers.dev
+//CHANGED logToGrafana() to use https://gr8r-grafana-worker.gr8r.workers.dev instead of custom domain
+//FIXED internal routing issues caused by same-origin Worker calls on gr8r.com
+//MAINTAINED verbose logging and payload tracking
 
 export default {
   async fetch(request, env, ctx) {
@@ -125,7 +125,7 @@ async function logToGrafana(level, message, meta = {}) {
   };
 
   try {
-    const res = await fetch("https://gr8r-grafana-worker.gr8r.com", {
+    const res = await fetch("https://gr8r-grafana-worker.gr8r.workers.dev", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)

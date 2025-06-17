@@ -1,18 +1,12 @@
-// v1.1.5 gr8r-airtable-worker: adds /debug/secrets endpoint to test secret binding
-// ADDED /debug/secrets route to confirm env.SECRETS.get is available at runtime
-// RETAINED secret null checks, Grafana logging, and all existing structure
-//no change forcing update2
+// v1.1.6 gr8r-airtable-worker: switches to direct env access for individual secret bindings
+// CHANGED from Secrets Store API (SECRETS.get) to env.AIRTABLE_TOKEN and env.AIRTABLE_BASE_ID
+// REQUIRED for compatibility with GitHub auto-deployments using [[text_blobs]] in wrangler.toml
+// RETAINED full Grafana logging and error handling
 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const pathname = url.pathname;
-
-    if (pathname === "/debug/secrets") {
-      const test = typeof env.SECRETS?.get === "function";
-      const msg = test ? "✅ Secrets binding is working" : "❌ env.SECRETS is not defined";
-      return new Response(msg, { status: test ? 200 : 500 });
-    }
 
     if (pathname === "/api/airtable/update" && request.method === "POST") {
       try {
@@ -34,8 +28,8 @@ export default {
           return new Response("Invalid table", { status: 403 });
         }
 
-        const airtableToken = await env.SECRETS?.get?.("AIRTABLE_TOKEN");
-        const airtableBaseId = await env.SECRETS?.get?.("AIRTABLE_BASE_ID");
+        const airtableToken = env.AIRTABLE_TOKEN;
+        const airtableBaseId = env.AIRTABLE_BASE_ID;
 
         if (!airtableToken || !airtableBaseId) {
           const missing = [

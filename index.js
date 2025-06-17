@@ -1,7 +1,7 @@
-// v1.1.2 gr8r-airtable-worker: switches Grafana logging to internal service binding
-//CHANGED logToGrafana() to use env.GRAFANA_WORKER.fetch() instead of external HTTP call
-//IMPROVED performance, reliability, and avoids domain-level restrictions
-//RETAINED verbose logging and payload structure for consistency
+// v1.1.3 gr8r-airtable-worker: migrates secrets to Cloudflare Secrets Store
+// CHANGED to use await env.SECRETS.get("AIRTABLE_TOKEN") and AIRTABLE_BASE_ID instead of per-Worker env vars
+// REQUIRES a Secret Store binding named "SECRETS" in wrangler.toml
+// RETAINED service binding for Grafana logging and all logic structure
 
 export default {
   async fetch(request, env, ctx) {
@@ -28,12 +28,15 @@ export default {
           return new Response("Invalid table", { status: 403 });
         }
 
-        const airtableUrl = `https://api.airtable.com/v0/${env.AIRTABLE_BASE_ID}/${table}`;
+        const airtableToken = await env.SECRETS.get("AIRTABLE_TOKEN");
+        const airtableBaseId = await env.SECRETS.get("AIRTABLE_BASE_ID");
+
+        const airtableUrl = `https://api.airtable.com/v0/${airtableBaseId}/${table}`;
         const queryUrl = `${airtableUrl}?filterByFormula=${encodeURIComponent(`{Title} = "${title}"`)}`;
 
         const response = await fetch(queryUrl, {
           headers: {
-            Authorization: `Bearer ${env.AIRTABLE_TOKEN}`,
+            Authorization: `Bearer ${airtableToken}`,
             "Content-Type": "application/json"
           }
         });
@@ -46,7 +49,7 @@ export default {
           const createResponse = await fetch(airtableUrl, {
             method: "POST",
             headers: {
-              Authorization: `Bearer ${env.AIRTABLE_TOKEN}`,
+              Authorization: `Bearer ${airtableToken}`,
               "Content-Type": "application/json"
             },
             body: JSON.stringify({
@@ -74,7 +77,7 @@ export default {
           const updateResponse = await fetch(`${airtableUrl}/${recordId}`, {
             method: "PATCH",
             headers: {
-              Authorization: `Bearer ${env.AIRTABLE_TOKEN}`,
+              Authorization: `Bearer ${airtableToken}`,
               "Content-Type": "application/json"
             },
             body: JSON.stringify({ fields })

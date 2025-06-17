@@ -1,12 +1,19 @@
-// v1.0.6 gr8r-airtable-worker: adds console diagnostics for failed log attempts
-//ADDED console.error fallback in logToGrafana() to confirm log payloads if transmission fails
-//VERIFIED all success and failure paths properly call logToGrafana() with consistent labels
-//RETAINED verbose label structure for Loki visibility in source/service queries
-
+// v1.0.6 gr8r-airtable-worker: adds log-only test endpoint for Grafana integration debugging
+//ADDED POST /api/airtable/log-test route to directly verify logging to Grafana
+//NO CHANGES to update logic — this helps isolate logging issues
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const pathname = url.pathname;
+
+    // TEMPORARY: direct log test route
+    if (pathname === "/api/airtable/log-test" && request.method === "POST") {
+      await logToGrafana("info", "🧪 Airtable worker log-only test", {
+        source: "gr8r-airtable-worker",
+        service: "log-test"
+      });
+      return new Response("Logged test entry", { status: 200 });
+    }
 
     if (pathname === "/api/airtable/update" && request.method === "POST") {
       try {
@@ -114,23 +121,21 @@ export default {
 };
 
 async function logToGrafana(level, message, meta = {}) {
-  const payload = {
-    level,
-    message,
-    meta: {
-      source: meta.source || "gr8r-airtable-worker",
-      service: meta.service || "gr8r-unknown",
-      ...meta
-    }
-  };
   try {
     await fetch("https://api.gr8r.com/api/grafana", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        level,
+        message,
+        meta: {
+          source: meta.source || "gr8r-airtable-worker",
+          service: meta.service || "gr8r-unknown",
+          ...meta
+        }
+      })
     });
   } catch (err) {
-    console.error("📛 Logger failed:", err.message);
-    console.error("📤 Intended log payload:", JSON.stringify(payload));
+    console.error("📛 Logger failed:", err.message, "📤 Original:", { level, message, meta });
   }
 }

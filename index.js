@@ -1,8 +1,7 @@
-// v1.0.7 gr8r-airtable-worker: adds inline logging to debug Grafana push
-//REPLACED `logToGrafana` with verbose version including payload + response logging
-//ADDED console.log for payload send and response status for transparency
-//NOTED optional rethrow pattern for future log visibility during silent failures
-//MAINTAINED label consistency for `source` and `service` across all logs
+// v1.0.8 gr8r-airtable-worker: switches to internal Grafana call via relative path
+//CHANGED logToGrafana() to use relative `/api/grafana` route for internal Worker-to-Worker call
+//REMOVED external `fetch` to api.gr8r.com to avoid 403 loopback issue
+//MAINTAINED verbose payload and response logging for troubleshooting
 
 export default {
   async fetch(request, env, ctx) {
@@ -126,7 +125,7 @@ async function logToGrafana(level, message, meta = {}) {
   };
 
   try {
-    const res = await fetch("https://api.gr8r.com/api/grafana", {
+    const res = await fetch("/api/grafana", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)

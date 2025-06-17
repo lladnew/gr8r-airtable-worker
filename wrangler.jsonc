@@ -3,9 +3,6 @@
   "main": "index.js",
   "compatibility_date": "2025-06-12",
 
-  // Optional: enable if using bundled usage model
-  // "usage_model": "bundled",
-
   "routes": [
     {
       "pattern": "api.gr8r.com/api/airtable*",
@@ -13,7 +10,6 @@
     }
   ],
 
-  // Service binding for logging
   "services": [
     {
       "binding": "GRAFANA_WORKER",
@@ -22,11 +18,15 @@
     }
   ],
 
-  // Environment variable keys; secrets are set via `wrangler secret put`
+  "secret_stores": [
+    {
+      "binding": "SECRETS",
+      "name": "gr8r-secrets"
+    }
+  ],
+
   "vars": {
-    // "AIRTABLE_BASE_ID": "set via wrangler secret",
-    // "AIRTABLE_TOKEN": "set via wrangler secret"
+    // moved to SECRETS: AIRTABLE_BASE_ID
+    // moved to SECRETS: AIRTABLE_TOKEN
   }
 }
-
-

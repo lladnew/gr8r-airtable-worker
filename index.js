@@ -1,12 +1,17 @@
-// v1.1.4 gr8r-airtable-worker: adds runtime validation for Secrets Store access
-// ADDED explicit null checks for AIRTABLE_TOKEN and AIRTABLE_BASE_ID
-// ADDED graceful error response and Grafana logging if secrets are missing
-// RETAINED all logging and Airtable logic structure
+// v1.1.5 gr8r-airtable-worker: adds /debug/secrets endpoint to test secret binding
+// ADDED /debug/secrets route to confirm env.SECRETS.get is available at runtime
+// RETAINED secret null checks, Grafana logging, and all existing structure
 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const pathname = url.pathname;
+
+    if (pathname === "/debug/secrets") {
+      const test = typeof env.SECRETS?.get === "function";
+      const msg = test ? "✅ Secrets binding is working" : "❌ env.SECRETS is not defined";
+      return new Response(msg, { status: test ? 200 : 500 });
+    }
 
     if (pathname === "/api/airtable/update" && request.method === "POST") {
       try {

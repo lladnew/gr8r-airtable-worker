@@ -1,6 +1,6 @@
-// v1.1.6 gr8r-airtable-worker: switches to direct env access for individual secret bindings
+// v1.1.7 gr8r-airtable-worker: switches to direct env access for individual secret bindings
 // CHANGED from Secrets Store API (SECRETS.get) to env.AIRTABLE_TOKEN and env.AIRTABLE_BASE_ID
-// REQUIRED for compatibility with GitHub auto-deployments using [[text_blobs]] in wrangler.toml
+// REQUIRED for compatibility with GitHub auto-deployments using manually declared secrets
 // RETAINED full Grafana logging and error handling
 
 export default {

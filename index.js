@@ -1,7 +1,7 @@
-// v1.1.3 gr8r-airtable-worker: migrates secrets to Cloudflare Secrets Store
-// CHANGED to use await env.SECRETS.get("AIRTABLE_TOKEN") and AIRTABLE_BASE_ID instead of per-Worker env vars
-// REQUIRES a Secret Store binding named "SECRETS" in wrangler.toml
-// RETAINED service binding for Grafana logging and all logic structure
+// v1.1.4 gr8r-airtable-worker: adds runtime validation for Secrets Store access
+// ADDED explicit null checks for AIRTABLE_TOKEN and AIRTABLE_BASE_ID
+// ADDED graceful error response and Grafana logging if secrets are missing
+// RETAINED all logging and Airtable logic structure
 
 export default {
   async fetch(request, env, ctx) {
@@ -28,8 +28,21 @@ export default {
           return new Response("Invalid table", { status: 403 });
         }
 
-        const airtableToken = await env.SECRETS.get("AIRTABLE_TOKEN");
-        const airtableBaseId = await env.SECRETS.get("AIRTABLE_BASE_ID");
+        const airtableToken = await env.SECRETS?.get?.("AIRTABLE_TOKEN");
+        const airtableBaseId = await env.SECRETS?.get?.("AIRTABLE_BASE_ID");
+
+        if (!airtableToken || !airtableBaseId) {
+          const missing = [
+            !airtableToken ? "AIRTABLE_TOKEN" : null,
+            !airtableBaseId ? "AIRTABLE_BASE_ID" : null
+          ].filter(Boolean).join(", ");
+
+          await logToGrafana(env, "error", "Missing required secrets", {
+            missing, source: "gr8r-airtable-worker", service: "secrets"
+          });
+
+          return new Response(`Missing required secret(s): ${missing}`, { status: 500 });
+        }
 
         const airtableUrl = `https://api.airtable.com/v0/${airtableBaseId}/${table}`;
         const queryUrl = `${airtableUrl}?filterByFormula=${encodeURIComponent(`{Title} = "${title}"`)}`;

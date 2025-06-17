@@ -1,7 +1,8 @@
-// v1.1.7 gr8r-airtable-worker: switches to direct env access for individual secret bindings
-// CHANGED from Secrets Store API (SECRETS.get) to env.AIRTABLE_TOKEN and env.AIRTABLE_BASE_ID
-// REQUIRED for compatibility with GitHub auto-deployments using manually declared secrets
-// RETAINED full Grafana logging and error handling
+// v1.1.8 gr8r-airtable-worker:
+// - ADDED verbose error logging (stack trace + payload) to all unhandled exceptions
+// - LOGS full Airtable API error bodies and response status codes on failure
+// - RETAINED: direct env access to AIRTABLE_TOKEN and AIRTABLE_BASE_ID
+// - RETAINED: full validation, structured Grafana logging, and create/update logic
 
 export default {
   async fetch(request, env, ctx) {
@@ -9,8 +10,9 @@ export default {
     const pathname = url.pathname;
 
     if (pathname === "/api/airtable/update" && request.method === "POST") {
+      let body = null;
       try {
-        const body = await request.json();
+        body = await request.json();
         const { table, title, fields } = body;
 
         if (!table || !title || !fields || typeof fields !== "object") {
@@ -53,12 +55,21 @@ export default {
             "Content-Type": "application/json"
           }
         });
-        const { records } = await response.json();
+        const searchResult = await response.json();
+
+        if (!response.ok) {
+          await logToGrafana(env, "error", "Airtable search failed", {
+            status: response.status,
+            responseBody: searchResult,
+            table, title, source: "gr8r-airtable-worker", service: "airtable-search"
+          });
+          return new Response("Airtable search failed", { status: 500 });
+        }
 
         let recordId;
         let operation;
 
-        if (records.length === 0) {
+        if (searchResult.records.length === 0) {
           const createResponse = await fetch(airtableUrl, {
             method: "POST",
             headers: {
@@ -72,21 +83,18 @@ export default {
           const createResult = await createResponse.json();
 
           if (!createResponse.ok) {
-            const rawError = typeof createResult.error === "string"
-              ? createResult.error
-              : createResult.error?.message || JSON.stringify(createResult.error);
-
             await logToGrafana(env, "error", "Airtable create failed", {
-              table, title, error: rawError,
-              source: "gr8r-airtable-worker", service: "airtable-create"
+              status: createResponse.status,
+              responseBody: createResult,
+              table, title, source: "gr8r-airtable-worker", service: "airtable-create"
             });
-            return new Response(`Create failed: ${rawError}`, { status: 500 });
+            return new Response("Airtable create failed", { status: 500 });
           }
 
           recordId = createResult.records[0].id;
           operation = "create";
         } else {
-          recordId = records[0].id;
+          recordId = searchResult.records[0].id;
           const updateResponse = await fetch(`${airtableUrl}/${recordId}`, {
             method: "PATCH",
             headers: {
@@ -96,13 +104,15 @@ export default {
             body: JSON.stringify({ fields })
           });
 
+          const updateResult = await updateResponse.json();
+
           if (!updateResponse.ok) {
-            const errorDetails = await updateResponse.text();
             await logToGrafana(env, "error", "Airtable update failed", {
-              table, title, error: errorDetails,
-              source: "gr8r-airtable-worker", service: "airtable-update"
+              status: updateResponse.status,
+              responseBody: updateResult,
+              table, title, source: "gr8r-airtable-worker", service: "airtable-update"
             });
-            return new Response(`Update failed: ${errorDetails}`, { status: 500 });
+            return new Response("Airtable update failed", { status: 500 });
           }
 
           operation = "update";
@@ -119,6 +129,8 @@ export default {
       } catch (err) {
         await logToGrafana(env, "error", "Unexpected Airtable worker error", {
           error: err.message,
+          stack: err.stack,
+          originalPayload: body,
           source: "gr8r-airtable-worker", service: "unhandled"
         });
         return new Response(`Unexpected error: ${err.message}`, { status: 500 });
@@ -148,13 +160,13 @@ async function logToGrafana(env, level, message, meta = {}) {
     });
 
     const resText = await res.text();
-    console.log("📤 Sent to Grafana:", JSON.stringify(payload));
-    console.log("📨 Grafana response:", res.status, resText);
+    console.log("\ud83d\udce4 Sent to Grafana:", JSON.stringify(payload));
+    console.log("\ud83d\udce8 Grafana response:", res.status, resText);
 
     if (!res.ok) {
       throw new Error(`Grafana log failed: ${res.status} - ${resText}`);
     }
   } catch (err) {
-    console.error("📛 Logger failed:", err.message, "📤 Original payload:", payload);
+    console.error("\ud83d\udccb Logger failed:", err.message, "\ud83d\udce4 Original payload:", payload);
   }
 }

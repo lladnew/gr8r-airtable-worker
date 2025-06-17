@@ -1,19 +1,13 @@
-// v1.0.6 gr8r-airtable-worker: adds log-only test endpoint for Grafana integration debugging
-//ADDED POST /api/airtable/log-test route to directly verify logging to Grafana
-//NO CHANGES to update logic — this helps isolate logging issues
+// v1.0.7 gr8r-airtable-worker: adds inline logging to debug Grafana push
+//REPLACED `logToGrafana` with verbose version including payload + response logging
+//ADDED console.log for payload send and response status for transparency
+//NOTED optional rethrow pattern for future log visibility during silent failures
+//MAINTAINED label consistency for `source` and `service` across all logs
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const pathname = url.pathname;
-
-    // TEMPORARY: direct log test route
-    if (pathname === "/api/airtable/log-test" && request.method === "POST") {
-      await logToGrafana("info", "🧪 Airtable worker log-only test", {
-        source: "gr8r-airtable-worker",
-        service: "log-test"
-      });
-      return new Response("Logged test entry", { status: 200 });
-    }
 
     if (pathname === "/api/airtable/update" && request.method === "POST") {
       try {
@@ -121,21 +115,31 @@ export default {
 };
 
 async function logToGrafana(level, message, meta = {}) {
+  const payload = {
+    level,
+    message,
+    meta: {
+      source: meta.source || "gr8r-airtable-worker",
+      service: meta.service || "gr8r-unknown",
+      ...meta
+    }
+  };
+
   try {
-    await fetch("https://api.gr8r.com/api/grafana", {
+    const res = await fetch("https://api.gr8r.com/api/grafana", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        level,
-        message,
-        meta: {
-          source: meta.source || "gr8r-airtable-worker",
-          service: meta.service || "gr8r-unknown",
-          ...meta
-        }
-      })
+      body: JSON.stringify(payload)
     });
+
+    const resText = await res.text();
+    console.log("📤 Sent to Grafana:", JSON.stringify(payload));
+    console.log("📨 Grafana response:", res.status, resText);
+
+    if (!res.ok) {
+      throw new Error(`Grafana log failed: ${res.status} - ${resText}`);
+    }
   } catch (err) {
-    console.error("📛 Logger failed:", err.message, "📤 Original:", { level, message, meta });
+    console.error("📛 Logger failed:", err.message, "📤 Original payload:", payload);
   }
 }

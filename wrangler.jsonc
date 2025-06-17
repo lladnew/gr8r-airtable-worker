@@ -8,8 +8,26 @@
       "pattern": "api.gr8r.com/api/airtable*",
       "zone_name": "gr8r.com"
     }
-  ]
+  ],
 
-  // ❌ Do NOT include `services`, `vars`, or `secret_stores`
-  // ✅ Manage bindings manually in the dashboard (GRAFANA_WORKER, SECRETS)
+  "services": [
+    {
+      "binding": "GRAFANA_WORKER",
+      "service": "gr8r-grafana-worker",
+      "environment": "production"
+    }
+  ],
+
+  "secret_stores": [
+    {
+      "binding": "SECRETS",
+      "name": "23d622f0d3b8499fa021fad6149af8c9"  // 👈 Your actual Secrets Store ID
+    }
+  ],
+
+  // 👇 These MUST be declared for the Secrets Store to expose them
+  "env": {
+    "AIRTABLE_TOKEN": {},
+    "AIRTABLE_BASE_ID": {}
+  }
 }

@@ -8,15 +8,8 @@
       "pattern": "api.gr8r.com/api/airtable*",
       "zone_name": "gr8r.com"
     }
-  ],
-
-  "services": [
-    {
-      "binding": "GRAFANA_WORKER",
-      "service": "gr8r-grafana-worker",
-      "environment": "production"
-    }
   ]
 
-  // ⚠️ Note: no secret_stores declared here, per updated decision
+  // ❌ Do NOT include `services`, `vars`, or `secret_stores`
+  // ✅ Manage bindings manually in the dashboard (GRAFANA_WORKER, SECRETS)
 }

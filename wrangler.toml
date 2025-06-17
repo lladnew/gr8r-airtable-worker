@@ -1,16 +1,22 @@
-name = "gr8r-airtable-worker"
-main = "index.js"
-compatibility_date = "2025-06-12"
+{
+  "name": "gr8r-airtable-worker",
+  "main": "index.js",
+  "compatibility_date": "2025-06-12",
 
-[[routes]]
-pattern = "api.gr8r.com/api/airtable*"
-zone_name = "gr8r.com"
+  "routes": [
+    {
+      "pattern": "api.gr8r.com/api/airtable*",
+      "zone_name": "gr8r.com"
+    }
+  ],
 
-[[services]]
-binding = "GRAFANA_WORKER"
-service = "gr8r-grafana-worker"
-environment = "production"
+  "services": [
+    {
+      "binding": "GRAFANA_WORKER",
+      "service": "gr8r-grafana-worker",
+      "environment": "production"
+    }
+  ]
 
-[[secret_stores]]
-binding = "SECRETS"
-name = "23d622f0d3b8499fa021fad6149af8c9"
+  // ⚠️ Note: no secret_stores declared here, per updated decision
+}

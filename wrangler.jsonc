@@ -3,7 +3,7 @@
   "main": "index.js",
   "compatibility_date": "2025-06-12",
 
-  // Optional: reduce cold starts (if needed)
+  // Optional: enable if using bundled usage model
   // "usage_model": "bundled",
 
   "routes": [
@@ -13,10 +13,20 @@
     }
   ],
 
-  // These are injected at runtime using wrangler secret put
+  // Service binding for logging
+  "services": [
+    {
+      "binding": "GRAFANA_WORKER",
+      "service": "gr8r-grafana-worker",
+      "environment": "production"
+    }
+  ],
+
+  // Environment variable keys; secrets are set via `wrangler secret put`
   "vars": {
     // "AIRTABLE_BASE_ID": "set via wrangler secret",
     // "AIRTABLE_TOKEN": "set via wrangler secret"
   }
 }
+
 

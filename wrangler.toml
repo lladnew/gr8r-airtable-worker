@@ -1,4 +1,4 @@
-name = "gr8r-airtable-worker" 
+name = "gr8r-airtable-worker"
 main = "index.js"
 compatibility_date = "2025-06-12"
 
@@ -6,16 +6,16 @@ routes = [
   { pattern = "api.gr8r.com/api/airtable*", zone_name = "gr8r.com" }
 ]
 
-[services]
 [[services]]
 binding = "GRAFANA_WORKER"
 service = "gr8r-grafana-worker"
 environment = "production"
 
-[[secret_stores]]
-binding = "SECRETS"
-name = "23d622f0d3b8499fa021fad6149af8c9"
+[[text_blobs]]
+binding = "AIRTABLE_TOKEN"
+data = { type = "secret", secret_store = "23d622f0d3b8499fa021fad6149af8c9" }
 
-[env]
-AIRTABLE_TOKEN = {}
-AIRTABLE_BASE_ID = {}
+[[text_blobs]]
+binding = "AIRTABLE_BASE_ID"
+data = { type = "secret", secret_store = "23d622f0d3b8499fa021fad6149af8c9" }
+

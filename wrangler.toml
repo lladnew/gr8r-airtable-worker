@@ -10,12 +10,3 @@ routes = [
 binding = "GRAFANA_WORKER"
 service = "gr8r-grafana-worker"
 environment = "production"
-
-[[text_blobs]]
-binding = "AIRTABLE_TOKEN"
-data = { type = "secret", secret_store = "23d622f0d3b8499fa021fad6149af8c9" }
-
-[[text_blobs]]
-binding = "AIRTABLE_BASE_ID"
-data = { type = "secret", secret_store = "23d622f0d3b8499fa021fad6149af8c9" }
-

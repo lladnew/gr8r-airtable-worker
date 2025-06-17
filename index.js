@@ -1,7 +1,7 @@
-// v1.0.5 gr8r-airtable-worker: improves error visibility in Grafana
-//FIXED createResult.error fallback to log raw error if .message is missing
-//ENSURED update of all error logs to show consistent, visible error context in Loki
-//MAINTAINED label integrity for Grafana queries and log source tracking
+// v1.0.6 gr8r-airtable-worker: adds console diagnostics for failed log attempts
+//ADDED console.error fallback in logToGrafana() to confirm log payloads if transmission fails
+//VERIFIED all success and failure paths properly call logToGrafana() with consistent labels
+//RETAINED verbose label structure for Loki visibility in source/service queries
 
 export default {
   async fetch(request, env, ctx) {
@@ -114,21 +114,23 @@ export default {
 };
 
 async function logToGrafana(level, message, meta = {}) {
+  const payload = {
+    level,
+    message,
+    meta: {
+      source: meta.source || "gr8r-airtable-worker",
+      service: meta.service || "gr8r-unknown",
+      ...meta
+    }
+  };
   try {
     await fetch("https://api.gr8r.com/api/grafana", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        level,
-        message,
-        meta: {
-          source: meta.source || "gr8r-airtable-worker",
-          service: meta.service || "gr8r-unknown",
-          ...meta
-        }
-      })
+      body: JSON.stringify(payload)
     });
   } catch (err) {
-    console.error("📛 Logger failed:", err.message, "📤 Original:", { level, message, meta });
+    console.error("📛 Logger failed:", err.message);
+    console.error("📤 Intended log payload:", JSON.stringify(payload));
   }
 }

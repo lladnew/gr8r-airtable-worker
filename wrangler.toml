@@ -9,4 +9,4 @@ routes = [
 [[services]]
 binding = "GRAFANA_WORKER"
 service = "gr8r-grafana-worker"
-environment = "production"
+

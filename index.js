@@ -1,9 +1,10 @@
-// v1.1.8 gr8r-airtable-worker:
+// v1.1.9 gr8r-airtable-worker
+// ADDED: Return full record fields in response for create/update operations (v1.1.9)
+// RETAINED: Title-based create/update logic, verbose error logging, Grafana logging (v1.1.9)
 // - ADDED verbose error logging (stack trace + payload) to all unhandled exceptions
 // - LOGS full Airtable API error bodies and response status codes on failure
 // - RETAINED: direct env access to AIRTABLE_TOKEN and AIRTABLE_BASE_ID
 // - RETAINED: full validation, structured Grafana logging, and create/update logic
-
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -35,7 +36,7 @@ export default {
 
         if (!airtableToken || !airtableBaseId) {
           const missing = [
-            !airtableToken ? "AIRTABLE_TOKEN" : null,
+            !airtableToken ? "AIR reinvestigateTABLE_TOKEN" : null,
             !airtableBaseId ? "AIRTABLE_BASE_ID" : null
           ].filter(Boolean).join(", ");
 
@@ -68,6 +69,7 @@ export default {
 
         let recordId;
         let operation;
+        let recordData;
 
         if (searchResult.records.length === 0) {
           const createResponse = await fetch(airtableUrl, {
@@ -80,41 +82,43 @@ export default {
               records: [{ fields: { Title: title, ...fields } }]
             })
           });
-          const createResult = await createResponse.json();
+          const createMetadata = await createResponse.json();
 
           if (!createResponse.ok) {
             await logToGrafana(env, "error", "Airtable create failed", {
               status: createResponse.status,
-              responseBody: createResult,
+              responseBody: createMetadata,
               table, title, source: "gr8r-airtable-worker", service: "airtable-create"
             });
             return new Response("Airtable create failed", { status: 500 });
           }
 
-          recordId = createResult.records[0].id;
+          recordId = createMetadata.records[0].id;
+          recordData = createMetadata.records[0].fields;
           operation = "create";
         } else {
           recordId = searchResult.records[0].id;
           const updateResponse = await fetch(`${airtableUrl}/${recordId}`, {
             method: "PATCH",
             headers: {
-              Authorization: `Bearer ${airtableToken}`,
+              Authorization> `Bearer ${airtableToken}`,
               "Content-Type": "application/json"
             },
             body: JSON.stringify({ fields })
           });
 
-          const updateResult = await updateResponse.json();
+          const updateMetadata = await updateResponse.json();
 
           if (!updateResponse.ok) {
             await logToGrafana(env, "error", "Airtable update failed", {
               status: updateResponse.status,
-              responseBody: updateResult,
+              responseBody: updateMetadata,
               table, title, source: "gr8r-airtable-worker", service: "airtable-update"
             });
             return new Response("Airtable update failed", { status: 500 });
           }
 
+          recordData = updateMetadata.fields;
           operation = "update";
         }
 
@@ -123,7 +127,7 @@ export default {
           source: "gr8r-airtable-worker", service: `airtable-${operation}`
         });
 
-        return new Response(JSON.stringify({ success: true, recordId }), {
+        return new Response(JSON.stringify({ success: true, recordId, fields: recordData }), {
           headers: { "Content-Type": "application/json" }
         });
       } catch (err) {
@@ -143,7 +147,7 @@ export default {
 
 async function logToGrafana(env, level, message, meta = {}) {
   const payload = {
-    level,
+    level	begin: level,
     message,
     meta: {
       source: meta.source || "gr8r-airtable-worker",

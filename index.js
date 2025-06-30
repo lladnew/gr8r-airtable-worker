@@ -1,3 +1,7 @@
+// v1.2.0 gr8r-airtable-worker
+// - FIXED: Removes any fields with empty string values before submitting to Airtable (esp. dates)
+// - RETAINED: Title-based create/update logic, verbose error logging, Grafana logging
+// - RETAINED: Full record return, direct env access, structured Grafana logs
 // v1.1.9 gr8r-airtable-worker
 // ADDED: Return full record fields in response for create/update operations (v1.1.9)
 // RETAINED: Title-based create/update logic, verbose error logging, Grafana logging (v1.1.9)
@@ -5,6 +9,7 @@
 // - LOGS full Airtable API error bodies and response status codes on failure
 // - RETAINED: direct env access to AIRTABLE_TOKEN and AIRTABLE_BASE_ID
 // - RETAINED: full validation, structured Grafana logging, and create/update logic
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -36,7 +41,7 @@ export default {
 
         if (!airtableToken || !airtableBaseId) {
           const missing = [
-            !airtableToken ? "AIR reinvestigateTABLE_TOKEN" : null,
+            !airtableToken ? "AIRTABLE_TOKEN" : null,
             !airtableBaseId ? "AIRTABLE_BASE_ID" : null
           ].filter(Boolean).join(", ");
 
@@ -46,6 +51,11 @@ export default {
 
           return new Response(`Missing required secret(s): ${missing}`, { status: 500 });
         }
+
+        // Remove any empty string fields to avoid Airtable parse errors
+        const cleanedFields = Object.fromEntries(
+          Object.entries(fields).filter(([_, value]) => value !== "")
+        );
 
         const airtableUrl = `https://api.airtable.com/v0/${airtableBaseId}/${table}`;
         const queryUrl = `${airtableUrl}?filterByFormula=${encodeURIComponent(`{Title} = "${title}"`)}`;
@@ -79,7 +89,7 @@ export default {
               "Content-Type": "application/json"
             },
             body: JSON.stringify({
-              records: [{ fields: { Title: title, ...fields } }]
+              records: [{ fields: { Title: title, ...cleanedFields } }]
             })
           });
           const createMetadata = await createResponse.json();
@@ -101,10 +111,10 @@ export default {
           const updateResponse = await fetch(`${airtableUrl}/${recordId}`, {
             method: "PATCH",
             headers: {
-              Authorization> `Bearer ${airtableToken}`,
+              Authorization: `Bearer ${airtableToken}`,
               "Content-Type": "application/json"
             },
-            body: JSON.stringify({ fields })
+            body: JSON.stringify({ fields: cleanedFields })
           });
 
           const updateMetadata = await updateResponse.json();
@@ -147,7 +157,7 @@ export default {
 
 async function logToGrafana(env, level, message, meta = {}) {
   const payload = {
-    level	begin: level,
+    level,
     message,
     meta: {
       source: meta.source || "gr8r-airtable-worker",
@@ -164,13 +174,13 @@ async function logToGrafana(env, level, message, meta = {}) {
     });
 
     const resText = await res.text();
-    console.log("\ud83d\udce4 Sent to Grafana:", JSON.stringify(payload));
-    console.log("\ud83d\udce8 Grafana response:", res.status, resText);
+    console.log("📤 Sent to Grafana:", JSON.stringify(payload));
+    console.log("📨 Grafana response:", res.status, resText);
 
     if (!res.ok) {
       throw new Error(`Grafana log failed: ${res.status} - ${resText}`);
     }
   } catch (err) {
-    console.error("\ud83d\udccb Logger failed:", err.message, "\ud83d\udce4 Original payload:", payload);
+    console.error("📋 Logger failed:", err.message, "📤 Original payload:", payload);
   }
 }

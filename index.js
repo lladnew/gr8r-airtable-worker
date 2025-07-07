@@ -1,3 +1,7 @@
+// v1.2.5 gr8r-airtable-worker
+// ADDED: Backwards compatibility for human-readable table names via mapping to table IDs
+// - Accepts both "Video posts" and "tblQKTuBRVrpJLmJp" in `table` field
+// - Internally resolves all calls to use Airtable table ID
 // v1.2.4 gr8r-airtable-worker
 // CHANGED: Table validation now checks for allowed Airtable table IDs instead of human-readable names
 // - Supports long-term best practice and consistent API usage
@@ -47,11 +51,21 @@ if (!table || !fields || typeof fields !== "object" || (!title && (!matchField |
   return new Response("Missing or invalid fields", { status: 400 });
 }
 
-const allowedTables = [
-  "tblQKTuBRVrpJLmJp", // Video Posts
-  "tblnn4fS7cSkcJW12"  // Subscribers
-];
-if (!allowedTables.includes(table)) {
+const tableMap = {
+  "Video posts": "tblQKTuBRVrpJLmJp",
+  "tblQKTuBRVrpJLmJp": "tblQKTuBRVrpJLmJp",
+  "Subscribers": "tblnn4fS7cSkcJW12",
+  "tblnn4fS7cSkcJW12": "tblnn4fS7cSkcJW12"
+};
+
+const resolvedTableId = tableMap[table];
+
+if (!resolvedTableId) {
+  await logToGrafana(env, "error", "Invalid table name or ID", {
+    table, title, source: "gr8r-airtable-worker", service: "validation"
+  });
+  return new Response("Invalid table", { status: 403 });
+}
           await logToGrafana(env, "error", "Invalid table name", {
             table, title, source: "gr8r-airtable-worker", service: "validation"
           });
@@ -79,7 +93,7 @@ if (!allowedTables.includes(table)) {
           Object.entries(fields).filter(([_, value]) => value !== "")
         );
 
-        const airtableUrl = `https://api.airtable.com/v0/${airtableBaseId}/${table}`;
+        const airtableUrl = `https://api.airtable.com/v0/${airtableBaseId}/${resolvedTableId}`;
         const filterField = matchField || "Title";
 const filterValue = matchValue || title;
 const queryUrl = `${airtableUrl}?filterByFormula=${encodeURIComponent(`{${filterField}} = "${filterValue}"`)}`;

@@ -1,3 +1,6 @@
+// v1.2.2 gr8r-airtable-worker
+// ENHANCED: Logs invalid `fields` object to Grafana if update payload is rejected
+// RETAINED: Allows empty field values and returns 400 only on invalid structure
 // v1.2.1 gr8r-airtable-worker
 // - ADDED: /api/airtable/get route to look up records by match field (e.g., Transcript ID) starting line 156
 // - RETAINED: Title-based create/update logic, verbose error logging, Grafana logging
@@ -24,12 +27,16 @@ export default {
         body = await request.json();
         const { table, title, fields } = body;
 
-        if (!table || !title || !fields || typeof fields !== "object") {
-          await logToGrafana(env, "error", "Missing or invalid payload fields", {
-            table, title, source: "gr8r-airtable-worker", service: "validation"
-          });
-          return new Response("Missing or invalid payload fields", { status: 400 });
-        }
+   if (!table || !title || !fields || typeof fields !== "object") {
+  await logToGrafana(env, "error", "Missing or invalid payload fields", {
+    table,
+    title,
+    fields,
+    source: "gr8r-airtable-worker",
+    service: "validation"
+  });
+  return new Response("Missing or invalid fields", { status: 400 });
+}
 
         const allowedTables = ["Video posts", "Subscribers"];
         if (!allowedTables.includes(table)) {

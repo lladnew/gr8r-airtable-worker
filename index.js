@@ -1,3 +1,7 @@
+// v1.2.4 gr8r-airtable-worker
+// CHANGED: Table validation now checks for allowed Airtable table IDs instead of human-readable names
+// - Supports long-term best practice and consistent API usage
+// - RETAINED: Case-sensitive matching, full Grafana error logging
 // v1.2.3 gr8r-airtable-worker
 // ENHANCED: /api/airtable/update now supports { matchField, matchValue } in addition to { title }
 // - Falls back to "Title" matching for legacy compatibility
@@ -43,8 +47,11 @@ if (!table || !fields || typeof fields !== "object" || (!title && (!matchField |
   return new Response("Missing or invalid fields", { status: 400 });
 }
 
-        const allowedTables = ["Video posts", "Subscribers"];
-        if (!allowedTables.includes(table)) {
+const allowedTables = [
+  "tblQKTuBRVrpJLmJp", // Video Posts
+  "tblnn4fS7cSkcJW12"  // Subscribers
+];
+if (!allowedTables.includes(table)) {
           await logToGrafana(env, "error", "Invalid table name", {
             table, title, source: "gr8r-airtable-worker", service: "validation"
           });

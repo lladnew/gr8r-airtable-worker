@@ -66,12 +66,7 @@ if (!resolvedTableId) {
   });
   return new Response("Invalid table", { status: 403 });
 }
-          await logToGrafana(env, "error", "Invalid table name", {
-            table, title, source: "gr8r-airtable-worker", service: "validation"
-          });
-          return new Response("Invalid table", { status: 403 });
-        }
-
+       
         const airtableToken = env.AIRTABLE_TOKEN;
         const airtableBaseId = env.AIRTABLE_BASE_ID;
 

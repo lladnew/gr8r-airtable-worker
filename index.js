@@ -1,3 +1,8 @@
+// v1.2.3 gr8r-airtable-worker
+// ENHANCED: /api/airtable/update now supports { matchField, matchValue } in addition to { title }
+// - Falls back to "Title" matching for legacy compatibility
+// - Uses matchField/matchValue to find existing record before patching
+// - RETAINED: creation if no match found, cleanedFields logic, and full Grafana logging
 // v1.2.2 gr8r-airtable-worker
 // ENHANCED: Logs invalid `fields` object to Grafana if update payload is rejected
 // RETAINED: Allows empty field values and returns 400 only on invalid structure
@@ -25,9 +30,9 @@ export default {
       let body = null;
       try {
         body = await request.json();
-        const { table, title, fields } = body;
+     const { table, title, fields, matchField, matchValue } = body;
 
-   if (!table || !title || !fields || typeof fields !== "object") {
+if (!table || !fields || typeof fields !== "object" || (!title && (!matchField || !matchValue))) {
   await logToGrafana(env, "error", "Missing or invalid payload fields", {
     table,
     title,
@@ -68,7 +73,9 @@ export default {
         );
 
         const airtableUrl = `https://api.airtable.com/v0/${airtableBaseId}/${table}`;
-        const queryUrl = `${airtableUrl}?filterByFormula=${encodeURIComponent(`{Title} = "${title}"`)}`;
+        const filterField = matchField || "Title";
+const filterValue = matchValue || title;
+const queryUrl = `${airtableUrl}?filterByFormula=${encodeURIComponent(`{${filterField}} = "${filterValue}"`)}`;
 
         const response = await fetch(queryUrl, {
           headers: {

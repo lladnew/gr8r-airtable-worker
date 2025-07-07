@@ -1,3 +1,6 @@
+// v1.2.1 gr8r-airtable-worker
+// - ADDED: /api/airtable/get route to look up records by match field (e.g., Transcript ID) starting line 156
+// - RETAINED: Title-based create/update logic, verbose error logging, Grafana logging
 // v1.2.0 gr8r-airtable-worker
 // - FIXED: Removes any fields with empty string values before submitting to Airtable (esp. dates)
 // - RETAINED: Title-based create/update logic, verbose error logging, Grafana logging
@@ -150,6 +153,45 @@ export default {
         return new Response(`Unexpected error: ${err.message}`, { status: 500 });
       }
     }
+    
+if (pathname === "/api/airtable/get" && request.method === "POST") {
+  try {
+    const { table, matchField, matchValue } = await request.json();
+
+    if (!table || !matchField || !matchValue) {
+      return new Response("Missing required fields", { status: 400 });
+    }
+
+    const airtableToken = env.AIRTABLE_TOKEN;
+    const airtableBaseId = env.AIRTABLE_BASE_ID;
+    const airtableUrl = `https://api.airtable.com/v0/${airtableBaseId}/${table}`;
+    const filter = `{${matchField}} = "${matchValue}"`;
+    const queryUrl = `${airtableUrl}?filterByFormula=${encodeURIComponent(filter)}`;
+
+    const response = await fetch(queryUrl, {
+      headers: {
+        Authorization: `Bearer ${airtableToken}`,
+        "Content-Type": "application/json"
+      }
+    });
+
+    const data = await response.json();
+    return new Response(JSON.stringify(data), {
+      headers: { "Content-Type": "application/json" },
+      status: response.status
+    });
+
+  } catch (err) {
+    await logToGrafana(env, "error", "Airtable GET error", {
+      error: err.message,
+      stack: err.stack,
+      source: "gr8r-airtable-worker",
+      service: "airtable-get"
+    });
+
+    return new Response("Error retrieving Airtable records", { status: 500 });
+  }
+}
 
     return new Response("Not found", { status: 404 });
   }

@@ -1,7 +1,6 @@
 name = "gr8r-airtable-worker" 
 main = "index.js"
 compatibility_date = "2025-06-12"
-account_id = "6a22f9b8ad27ffcc9719dd53a78bcedf"
 
 routes = [
   { pattern = "api.gr8r.com/api/airtable*", zone_name = "gr8r.com" }

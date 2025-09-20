@@ -30,6 +30,7 @@
 // - RETAINED: direct env access to AIRTABLE_TOKEN and AIRTABLE_BASE_ID
 // - RETAINED: full validation, structured Grafana logging, and create/update logic
 
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);

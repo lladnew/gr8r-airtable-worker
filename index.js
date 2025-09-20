@@ -1,3 +1,4 @@
+// v1.2.6 gr8r-airtable-worker CHANGED: removed success logging to Grafana to reduce noise
 // v1.2.5 gr8r-airtable-worker
 // ADDED: Backwards compatibility for human-readable table names via mapping to table IDs
 // - Accepts both "Video posts" and "tblQKTuBRVrpJLmJp" in `table` field
@@ -164,11 +165,6 @@ const queryUrl = `${airtableUrl}?filterByFormula=${encodeURIComponent(`{${filter
           recordData = updateMetadata.fields;
           operation = "update";
         }
-
-        await logToGrafana(env, "info", `Airtable ${operation} successful`, {
-          table, title, operation,
-          source: "gr8r-airtable-worker", service: `airtable-${operation}`
-        });
 
         return new Response(JSON.stringify({ success: true, recordId, fields: recordData }), {
           headers: { "Content-Type": "application/json" }
